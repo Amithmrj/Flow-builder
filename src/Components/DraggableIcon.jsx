@@ -23,7 +23,7 @@ const DraggableIcon = ({ icon, title }) => {
       }`}
       style={{ cursor: 'move' }}
     >
-      <div className="border p-2 rounded-circle">
+      <div className=" p-2 rounded-circle" style={{borderStyle:'dashed',borderWidth:'1px',borderColor:'#cddeed'}}>
         <Icon icon={icon} width={26} height={26} />
       </div>
     </div>
