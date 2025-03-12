@@ -1,12 +1,35 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Container, Row, Col, Button } from 'react-bootstrap';
-import IconCard from './Card';
+import ReactFlow, {
+  ReactFlowProvider,
+  Background,
+  Controls,
+  MiniMap,
+  addEdge,
+  useNodesState,
+  useEdgesState
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 import DraggableIcon from './DraggableIcon';
+import CustomNode from './Card'; 
+import { Icon } from '@iconify/react';
+
+// Registering the custom node type
+const nodeTypes = {
+  iconCard: CustomNode
+};
 
 const DragDrop = () => {
-  const [cards, setCards] = useState([]);
-  // const [draggingCard, setDraggingCard] = useState(null);
-  const dropDivRef = useRef(null);
+  const reactFlowWrapper = useRef(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [selectedNode, setSelectedNode] = useState(null);
+  
+
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [sidebarData, setSidebarData] = useState(null);
+  const [sidebarNodeId, setSidebarNodeId] = useState(null);
 
   const icons = [
     { icon: 'icon-park:text-message', title: 'text' },
@@ -23,57 +46,99 @@ const DragDrop = () => {
     { icon: 'catppuccin:folder-templates', title: 'Template meessage' }
   ];
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
+  // Function to open sidebar from node
+  const handleOpenSidebar = (nodeId, nodeData) => {
+    setSidebarNodeId(nodeId);
+    setSidebarData(nodeData);
+    setShowSidebar(true);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const dropDivDetail = dropDivRef.current.getBoundingClientRect();
-    const x = e.clientX - dropDivDetail.left;
-    const y = e.clientY - dropDivDetail.top;
-    // console.log('valuex is', x, 'valuey is', y);
-    
+  // Function to close sidebar
+  const handleCloseSidebar = () => {
+    setShowSidebar(false);
+    setSidebarData(null);
+    setSidebarNodeId(null);
+  };
 
-    // data for rearranging cars after the placement 
-    const cardId = e.dataTransfer.getData('cardId');
-    const title = e.dataTransfer.getData('title');
+  const onConnect = useCallback(
+    (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    [setEdges]
+  );
 
-    if (cardId) {
-      const offsetData = JSON.parse(e.dataTransfer.getData('offset'));   //adding new position details to setCards
-      setCards(cards.map(card => {
-        if (card.id.toString() === cardId) {
-          return {
-            ...card,
-            position: {
-              x: x - offsetData.x,
-              y: y - offsetData.y
-            }
-          };
-        }
-        return card;
-      }));
-    }
-    else if (title) {
-      const DraggedIcon = icons.find((icon) => icon.title === title);         //adding new icon detail to setCards
-      if (DraggedIcon) {
-        setCards([
-          ...cards,
-          {
-            id: Date.now(),
-            ...DraggedIcon,
-            position: { x: x - 144, y: y - 20 },
-          },
-        ]);
+  const isValidConnection = (connection) => {
+    // Prevent connections where source and target are the same node
+    return connection.source !== connection.target;
+  };
+
+  const onDragOver = useCallback((event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDrop = useCallback(
+    (event) => {
+      event.preventDefault();
+
+      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+      const title = event.dataTransfer.getData('title');
+
+      if (!title || !reactFlowInstance) {
+        return;
       }
+
+      const position = reactFlowInstance.screenToFlowPosition({
+        x: event.clientX - reactFlowBounds.left,
+        y: event.clientY - reactFlowBounds.top,
+      });
+
+      const iconData = icons.find((iconObj) => iconObj.title === title);
+
+      if (iconData) {
+        const newNode = {
+          id: `node_${Date.now()}`,
+          type: 'iconCard',
+          position,
+          data: {
+            label: title,
+            icon: iconData.icon,
+            stats: {
+              sent: 0,
+              delivered: 0,
+              subscribers: 0,
+              errors: 0
+            },
+            onDelete: (nodeId) => {
+              setNodes((nodes) => nodes.filter((node) => node.id !== nodeId));
+              setEdges((edges) => edges.filter(
+                (edge) => edge.source !== nodeId && edge.target !== nodeId
+              ));
+              // Close sidebar if the deleted node has the sidebar open
+              if (nodeId === sidebarNodeId) {
+                handleCloseSidebar();
+              }
+            },
+            // Pass the openSidebar function to each node
+            onOpenSidebar: handleOpenSidebar
+          },
+        };
+
+        setNodes((nds) => nds.concat(newNode));
+      }
+    },
+    [reactFlowInstance, setNodes, icons, setEdges, sidebarNodeId]
+  );
+
+  const onNodeClick = useCallback((event, node) => {
+    setSelectedNode(node.id);
+  }, []);
+
+  const saveFlow = () => {
+    if (reactFlowInstance) {
+      const flow = reactFlowInstance.toObject();
+      // Save the flow data to backend or localStorage
+      console.log("Flow saved:", flow);
+      alert("Flow saved successfully!");
     }
-  };
-
-  // console.log(cards);
-  
-
-  const handleCloseCard = (cardId) => {
-    setCards(cards.filter((card) => card.id !== cardId));
   };
 
   return (
@@ -85,7 +150,7 @@ const DragDrop = () => {
               {icons.map((iconObj) => (
                 <DraggableIcon key={iconObj.title} icon={iconObj.icon} title={iconObj.title} />
               ))}
-              <Button variant="success" className="ms-auto">
+              <Button variant="success" className="ms-auto" onClick={saveFlow}>
                 Save
               </Button>
             </Col>
@@ -93,30 +158,123 @@ const DragDrop = () => {
         </Container>
       </div>
 
-      <div
-        ref={dropDivRef}
-        className="flex-grow-1 bg-light position-relative"
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
-        {cards.map((card) => (
-          <div
-            key={card.id}
-            className="position-absolute"
-            style={{
-              left: card.position.x,
-              top: card.position.y,
-              // opacity: draggingCard === card.id ? 0.5 : 1,
+      <div className="flex-grow-1 position-relative" ref={reactFlowWrapper}>
+        <ReactFlowProvider>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            isValidConnection={isValidConnection}
+            onInit={setReactFlowInstance}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onNodeClick={onNodeClick}
+            nodeTypes={nodeTypes}
+            defaultEdgeOptions={{
+              style: { stroke: '#4ea9ff', strokeWidth: 2 },
+              animated: true
             }}
           >
-            <IconCard
-              icon={card.icon}
-              title={card.title}
-              id={card.id}
-              onClose={() => handleCloseCard(card.id)}
+            <MiniMap />
+          </ReactFlow>
+        </ReactFlowProvider>
+        
+        {/* Render the sidebar*/}
+        {showSidebar && sidebarData && (
+          <>
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '300px',
+                height: '100%',
+                backgroundColor: 'white',
+                boxShadow: '-2px 0 10px rgba(0, 0, 0, 0.2)',
+                zIndex: 1000,
+                padding: '20px',
+                overflowY: 'auto'
+              }}
+            >
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h4 className="mb-0">{sidebarData.label} Details</h4>
+                <Button
+                  variant="success"
+                  className="d-flex justify-content-center align-items-center"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%'
+                  }}
+                  onClick={handleCloseSidebar}
+                >
+                 X
+                </Button>
+              </div>
+
+              <div className="sidebar-content">
+                <div className="mb-3">
+                  <div className="d-flex justify-content-between mb-2">
+                    <span>Sent:</span>
+                    <span>{sidebarData.stats.sent}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span>Delivered:</span>
+                    <span>{sidebarData.stats.delivered}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span>Subscribers:</span>
+                    <span>{sidebarData.stats.subscribers}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span>Errors:</span>
+                    <span>{sidebarData.stats.errors}</span>
+                  </div>
+                </div>
+
+                <hr />
+
+                <div className="mb-3">
+                  <h5>Configuration</h5>
+                  <div className="mb-2">
+                    <label className="form-label">Node Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={sidebarData.label}
+                      readOnly
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">Type</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={sidebarData.label}
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar backdrop */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 999,
+                backgroundColor: 'rgba(0, 0, 0, 0.1)'
+              }}
+              onClick={handleCloseSidebar}
             />
-          </div>
-        ))}
+          </>
+        )}
       </div>
     </div>
   );

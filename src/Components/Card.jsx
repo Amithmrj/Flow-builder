@@ -1,80 +1,104 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button } from 'react-bootstrap';
 import { Icon } from '@iconify/react';
+import { Handle, Position, useReactFlow } from 'reactflow';
 
-const IconCard = ({ icon, title, onClose, id }) => {
-  const [showCloseButton, setShowCloseButton] = useState(false);
-  const [isCardActive, setIsCardActive] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const cardRef = useRef(null);
-
-  const handleDragStart = (e) => {
-    e.dataTransfer.setData('cardId', id);
-    const rect = e.target.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left;
-    const offsetY = e.clientY - rect.top;
-
-    e.dataTransfer.setData('offset', JSON.stringify({ x: offsetX, y: offsetY }));
-  };
-
-  const handleContextMenu = (e) => {
-    e.preventDefault();  
-    setShowCloseButton(true);
-    setIsCardActive(true); 
-  };
-
-  const handleCardClick = () => {
-    setIsCardActive(true);
-  };
+const CustomNode = ({ id, data }) => {
+  const [isActive, setIsActive] = useState(false);
+  const [isTargetHovered, setIsTargetHovered] = useState(false);
+  const [isSourceHovered, setIsSourceHovered] = useState(false);
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
+  const nodeRef = useRef(null);
+  const reactFlowInstance = useReactFlow();
 
   const handleIconClick = (e) => {
-    e.stopPropagation(); // Prevent card activation
-    setShowSidebar(true);
+    e.stopPropagation();
+    // Calling the openSidebar function from props
+    data.onOpenSidebar(id, data);
   };
 
-  const handleCloseSidebar = () => {
-    setShowSidebar(false);
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    data.onDelete(id);
+    setShowDeleteButton(false);
   };
 
-  //hide close button logic
+  const handleClick = () => {
+    setIsActive(true);
+  };
+
+  const handleBlur = () => {
+    setIsActive(false);
+  };
+
+  const handleRightClick = (e) => {
+    e.preventDefault(); 
+    e.stopPropagation();
+    setShowDeleteButton(true);
+  };
+
+  // Handle both left and right clicks outside the card
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (cardRef.current && !cardRef.current.contains(e.target)) {
-        setShowCloseButton(false);
-        setIsCardActive(false);
+    const handleOutsideClick = (event) => {
+      // If clicking outside the node and delete button is visible, hide it
+      if (nodeRef.current && !nodeRef.current.contains(event.target) && showDeleteButton) {
+        setShowDeleteButton(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    // Add event listeners for both mousedown (left click) and contextmenu (right click)
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('contextmenu', handleOutsideClick);
+    
+    // Clean up event listeners
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('contextmenu', handleOutsideClick);
     };
-  }, []);
+  }, [showDeleteButton]);
 
   return (
-    <>
+    <div 
+      ref={nodeRef}
+      onFocus={handleClick} 
+      onBlur={handleBlur} 
+      tabIndex={0}
+      onContextMenu={handleRightClick}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{
+          height: '15px',
+          width: '15px',
+          backgroundColor: isTargetHovered ? 'black' : 'white',
+          border: '2px solid #718190',
+          zIndex: 10,
+          top: '75%'
+        }}
+        onMouseEnter={() => setIsTargetHovered(true)}
+        onMouseLeave={() => setIsTargetHovered(false)}
+      />
+
       <Card
-        ref={cardRef}
         className="mb-3"
         style={{
           width: '17rem',
-          cursor: 'move',
-          boxShadow: isCardActive ? '0 2px 20px 2px #4ea9ff' : '0 2px 15px 2px #718190'
+          boxShadow: isActive ? '0 2px 20px 2px #4ea9ff' : '0 2px 15px 2px #718190',
+          borderColor: isActive ? '#4ea9ff' : '#718190',
+          position: 'relative'
         }}
-        draggable
-        onDragStart={handleDragStart}
-        onContextMenu={handleContextMenu}
-        onClick={handleCardClick}
       >
         <div className='p-2'>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div className="d-flex align-items-center">
-              <Icon icon={icon} width={20} height={20} className="me-2" />
-              <h5 className="mb-0">{title}</h5>
+              <Icon icon={data.icon} width={20} height={20} className="me-2" />
+              <h5 className="mb-0">{data.label}</h5>
             </div>
-            {showCloseButton && (
+            {showDeleteButton && (
               <Button
-                onClick={onClose}
+                onClick={handleDelete}
                 className="p-0 d-flex justify-content-center align-items-center position-absolute"
                 style={{
                   width: '30px',
@@ -86,52 +110,53 @@ const IconCard = ({ icon, title, onClose, id }) => {
                   position: 'absolute',
                   right: '-15px',
                   top: '-15px',
-                  boxShadow: '0 2px 20px 2px #4ea9ff'
+                  boxShadow: '0 2px 20px 2px #4ea9ff',
+                  zIndex: 999
                 }}
               >
                 <Icon icon="mdi:close" width={14} height={14} />
               </Button>
             )}
           </div>
-          
-          <div className=' justify-content-around row'>
-            <div className=' col' style={{ fontSize: '10px' }}>
+
+          <div className='justify-content-around row'>
+            <div className='col' style={{ fontSize: '10px' }}>
               <div className='d-flex'>
                 <Icon className='mt-1' icon='tabler:send' color='blue'></Icon>
-                <p className='mb-0 ' >Sent</p>
+                <p className='mb-0'>Sent</p>
               </div>
-                <p className='text-center'>0</p>
+              <p className='text-center'>{data.stats.sent}</p>
             </div>
 
-            <div className=' col' style={{ fontSize: '10px' }}>
+            <div className='col' style={{ fontSize: '10px' }}>
               <div className='d-flex'>
                 <Icon className='mt-1' icon='tabler:send' color='blue'></Icon>
-                <p className='mb-0' >Delivered</p>
+                <p className='mb-0'>Delivered</p>
               </div>
-                <p className=' mb-0 text-center'>0</p>
+              <p className='mb-0 text-center'>{data.stats.delivered}</p>
             </div>
 
-            <div className=' col' style={{ fontSize: '10px' }}>
+            <div className='col' style={{ fontSize: '10px' }}>
               <div className='d-flex'>
                 <Icon className='mt-1' icon='tabler:send' color='blue'></Icon>
-                <p className='mb-0' >Subscribers</p>
+                <p className='mb-0'>Subscribers</p>
               </div>
-                <p className='text-center'>0</p>
+              <p className='text-center'>{data.stats.subscribers}</p>
             </div>
 
-            <div className=' col' style={{ fontSize: '10px' }}>
+            <div className='col' style={{ fontSize: '10px' }}>
               <div className='d-flex'>
                 <Icon className='mt-1' icon='tabler:send' color='blue'></Icon>
-                <p className='mb-0' >Errors</p>
+                <p className='mb-0'>Errors</p>
               </div>
-                <p className='text-center'>0</p>
+              <p className='text-center'>{data.stats.errors}</p>
             </div>
           </div>
-          <div className='text-center mb-4'>
-            <Icon 
-              icon='mdi:interaction-tap' 
-              height={54} 
-              width={54} 
+          <div className='text-center mb-2'>
+            <Icon
+              icon='mdi:interaction-tap'
+              height={54}
+              width={54}
               style={{ cursor: 'pointer' }}
               onClick={handleIconClick}
             />
@@ -139,81 +164,21 @@ const IconCard = ({ icon, title, onClose, id }) => {
         </div>
       </Card>
 
-      {/* Sidebaar */}
-      {showSidebar && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            right: 0,
-            width: '300px',
-            height: '100%',
-            backgroundColor: 'white',
-            boxShadow: '-2px 0 10px rgba(0, 0, 0, 0.2)',
-            zIndex: 1000,
-            padding: '20px',
-            transition: 'all 0.3s ease-in-out',
-            overflowY: 'auto'
-          }}
-        >
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h4 className="mb-0">{title} Details</h4>
-            <Button
-              variant="success"
-              className="d-flex justify-content-center align-items-center"
-              style={{ 
-                width: '32px', 
-                height: '32px',
-                borderRadius: '50%'
-              }}
-              onClick={handleCloseSidebar}
-            >
-              X
-            </Button>
-          </div>
-          
-          <div className="sidebar-content">
-            <div className="mb-3">
-              
-              <div className="d-flex justify-content-between mb-2">
-                <span>Sent:</span>
-                <span>0</span>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Delivered:</span>
-                <span>0</span>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Subscribers:</span>
-                <span>0</span>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Errors:</span>
-                <span>0</span>
-              </div>
-            </div>
-            
-            <hr />
-          </div>
-        </div>
-      )}
-      
-      {/* sidebar closing */}
-      {showSidebar && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            zIndex: 999
-          }}
-          onClick={handleCloseSidebar}
-        />
-      )}
-    </>
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{
+          height: '15px',
+          width: '15px',
+          backgroundColor: isSourceHovered ? 'black' : 'white',
+          border: '2px solid #718190',
+          top: '75%'
+        }}
+        onMouseEnter={() => setIsSourceHovered(true)}
+        onMouseLeave={() => setIsSourceHovered(false)}
+      />
+    </div>
   );
 };
 
-export default IconCard;
+export default CustomNode;
