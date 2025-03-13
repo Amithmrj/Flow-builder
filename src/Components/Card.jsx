@@ -36,9 +36,9 @@ const CustomNode = ({ id, data }) => {
   };
 
   const handleRightClick = (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     e.stopPropagation();
-    
+
     // to only show delete button if not a start node
     if (!isStartNode) {
       setShowDeleteButton(true);
@@ -57,7 +57,7 @@ const CustomNode = ({ id, data }) => {
     // Add event listeners for both mousedown (left click) and contextmenu (right click)
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('contextmenu', handleOutsideClick);
-    
+
     // Clean up event listeners
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
@@ -66,27 +66,30 @@ const CustomNode = ({ id, data }) => {
   }, [showDeleteButton]);
 
   return (
-    <div 
+    <div
       ref={nodeRef}
-      onFocus={handleClick} 
-      onBlur={handleBlur} 
+      onFocus={handleClick}
+      onBlur={handleBlur}
       tabIndex={0}
       onContextMenu={handleRightClick}
     >
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{
-          height: '15px',
-          width: '15px',
-          backgroundColor: isTargetHovered ? 'black' : 'white',
-          border: '2px solid #718190',
-          zIndex: 10,
-          top: '75%'
-        }}
-        onMouseEnter={() => setIsTargetHovered(true)}
-        onMouseLeave={() => setIsTargetHovered(false)}
-      />
+      {/* conditionally rendering traget handle for start-node */}
+      {!isStartNode && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          style={{
+            height: '15px',
+            width: '15px',
+            backgroundColor: isTargetHovered ? 'black' : 'white',
+            border: '2px solid #718190',
+            zIndex: 10,
+            top: '75%'
+          }}
+          onMouseEnter={() => setIsTargetHovered(true)}
+          onMouseLeave={() => setIsTargetHovered(false)}
+        />
+      )}
 
       <Card
         className="mb-3"
@@ -95,14 +98,14 @@ const CustomNode = ({ id, data }) => {
           boxShadow: isActive ? '0 2px 20px 2px #4ea9ff' : '0 2px 15px 2px #718190',
           borderColor: isActive ? '#4ea9ff' : '#718190',
           position: 'relative',
-          cursor:'all-scroll'
+          cursor: 'all-scroll'
         }}
       >
         <div className='p-2'>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div className="d-flex align-items-center">
-              <Icon icon={data.icon}  height={data.iconSize?.height || 20} 
-  width={data.iconSize?.width || 20}  className="me-2" />
+              <Icon icon={data.icon} height={data.iconSize?.height || 20}
+                width={data.iconSize?.width || 20} className="me-2" />
               <h5 className="mb-0">{data.label}</h5>
             </div>
             {/* Only show delete button if NOT a start node and if showDeleteButton is true */}
