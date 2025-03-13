@@ -11,6 +11,9 @@ const CustomNode = ({ id, data }) => {
   const nodeRef = useRef(null);
   const reactFlowInstance = useReactFlow();
 
+  // Check if this is the start node
+  const isStartNode = data.isStartNode || false;
+
   const handleIconClick = (e) => {
     e.stopPropagation();
     // Calling the openSidebar function from props
@@ -35,13 +38,17 @@ const CustomNode = ({ id, data }) => {
   const handleRightClick = (e) => {
     e.preventDefault(); 
     e.stopPropagation();
-    setShowDeleteButton(true);
+    
+    // to only show delete button if not a start node
+    if (!isStartNode) {
+      setShowDeleteButton(true);
+    }
   };
 
   // Handle both left and right clicks outside the card
   useEffect(() => {
     const handleOutsideClick = (event) => {
-      // If clicking outside the node and delete button is visible, hide it
+      // using useref to hide the delete button when clicking outside node
       if (nodeRef.current && !nodeRef.current.contains(event.target) && showDeleteButton) {
         setShowDeleteButton(false);
       }
@@ -87,16 +94,19 @@ const CustomNode = ({ id, data }) => {
           width: '17rem',
           boxShadow: isActive ? '0 2px 20px 2px #4ea9ff' : '0 2px 15px 2px #718190',
           borderColor: isActive ? '#4ea9ff' : '#718190',
-          position: 'relative'
+          position: 'relative',
+          cursor:'all-scroll'
         }}
       >
         <div className='p-2'>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div className="d-flex align-items-center">
-              <Icon icon={data.icon} width={20} height={20} className="me-2" />
+              <Icon icon={data.icon}  height={data.iconSize?.height || 20} 
+  width={data.iconSize?.width || 20}  className="me-2" />
               <h5 className="mb-0">{data.label}</h5>
             </div>
-            {showDeleteButton && (
+            {/* Only show delete button if NOT a start node and if showDeleteButton is true */}
+            {showDeleteButton && !isStartNode && (
               <Button
                 onClick={handleDelete}
                 className="p-0 d-flex justify-content-center align-items-center position-absolute"
@@ -130,7 +140,7 @@ const CustomNode = ({ id, data }) => {
 
             <div className='col' style={{ fontSize: '10px' }}>
               <div className='d-flex'>
-                <Icon className='mt-1' icon='tabler:send' color='blue'></Icon>
+                <Icon className='mt-1' icon='material-symbols:mail-rounded' color='green'></Icon>
                 <p className='mb-0'>Delivered</p>
               </div>
               <p className='mb-0 text-center'>{data.stats.delivered}</p>
@@ -138,7 +148,7 @@ const CustomNode = ({ id, data }) => {
 
             <div className='col' style={{ fontSize: '10px' }}>
               <div className='d-flex'>
-                <Icon className='mt-1' icon='tabler:send' color='blue'></Icon>
+                <Icon className='mt-1' icon='iconamoon:profile-fill' color='orange'></Icon>
                 <p className='mb-0'>Subscribers</p>
               </div>
               <p className='text-center'>{data.stats.subscribers}</p>
@@ -146,7 +156,7 @@ const CustomNode = ({ id, data }) => {
 
             <div className='col' style={{ fontSize: '10px' }}>
               <div className='d-flex'>
-                <Icon className='mt-1' icon='tabler:send' color='blue'></Icon>
+                <Icon className='mt-1' icon='fa6-solid:bugs' color='red'></Icon>
                 <p className='mb-0'>Errors</p>
               </div>
               <p className='text-center'>{data.stats.errors}</p>

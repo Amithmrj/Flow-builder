@@ -11,7 +11,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import DraggableIcon from './DraggableIcon';
-import CustomNode from './Card'; 
+import CustomNode from './Card';
 import { Icon } from '@iconify/react';
 
 // Registering the custom node type
@@ -22,11 +22,7 @@ const nodeTypes = {
 const DragDrop = () => {
   const reactFlowWrapper = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState(null);
   
-
   const [showSidebar, setShowSidebar] = useState(false);
   const [sidebarData, setSidebarData] = useState(null);
   const [sidebarNodeId, setSidebarNodeId] = useState(null);
@@ -42,7 +38,7 @@ const DragDrop = () => {
     { icon: 'carbon:touch-1-filled', title: 'Interactive' },
     { icon: 'ph:greater-than-or-equal-bold', title: 'Conditional' },
     { icon: 'logos:sequelize', title: 'Sequence' },
-    { icon: 'flat-color-icons:multiple-inputs', title: 'User input flow' },
+    { icon: 'devicon:stackoverflow', title: 'User input flow' },
     { icon: 'catppuccin:folder-templates', title: 'Template meessage' }
   ];
 
@@ -60,8 +56,62 @@ const DragDrop = () => {
     setSidebarNodeId(null);
   };
 
+
+  const handleDeleteNode = (nodeId) => {
+    // To allow deletion of the start node
+    if (nodeId === 'start-node') return;
+    
+    setNodes((nodes) => nodes.filter((node) => node.id !== nodeId));
+    setEdges((edges) => edges.filter(
+      (edge) => edge.source !== nodeId && edge.target !== nodeId
+    ));
+    
+    // To Close sidebar if the deleted node has the sidebar open
+    if (nodeId === sidebarNodeId) {
+      handleCloseSidebar();
+    }
+  };
+
+  // Create a default start node
+  const initialNodes = [
+    {
+      id: 'start-node',
+      type: 'iconCard',
+      position: { x: 80, y: 50 },
+      data: {
+        label: 'Start Bot Flow',
+        icon: 'tabler:walk',
+        iconSize: { height: 24, width: 24 },
+        stats: {
+          sent: 0,
+          delivered: 0,
+          subscribers: 0,
+          errors: 0
+        },
+        onDelete: handleDeleteNode,
+        onOpenSidebar: handleOpenSidebar,
+        isStartNode: true // start node identifier
+      }
+    }
+  ];
+  
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [selectedNode, setSelectedNode] = useState(null);
+
+
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    (params) => setEdges((eds) => addEdge({ 
+      ...params,
+       animated: false,
+       style: { stroke: '#000000', strokeWidth: 2 },
+       markerEnd: {
+         type: 'arrowclosed',
+         width: 20,
+         height: 20,
+         color: '#000000',
+       },
+      }, eds)),
     [setEdges]
   );
 
@@ -107,18 +157,9 @@ const DragDrop = () => {
               subscribers: 0,
               errors: 0
             },
-            onDelete: (nodeId) => {
-              setNodes((nodes) => nodes.filter((node) => node.id !== nodeId));
-              setEdges((edges) => edges.filter(
-                (edge) => edge.source !== nodeId && edge.target !== nodeId
-              ));
-              // Close sidebar if the deleted node has the sidebar open
-              if (nodeId === sidebarNodeId) {
-                handleCloseSidebar();
-              }
-            },
-            // Pass the openSidebar function to each node
-            onOpenSidebar: handleOpenSidebar
+            onDelete: handleDeleteNode,
+            onOpenSidebar: handleOpenSidebar,
+            isStartNode: false
           },
         };
 
@@ -135,7 +176,7 @@ const DragDrop = () => {
   const saveFlow = () => {
     if (reactFlowInstance) {
       const flow = reactFlowInstance.toObject();
-      // Save the flow data to backend or localStorage
+    
       console.log("Flow saved:", flow);
       alert("Flow saved successfully!");
     }
@@ -173,14 +214,20 @@ const DragDrop = () => {
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
             defaultEdgeOptions={{
-              style: { stroke: '#4ea9ff', strokeWidth: 2 },
-              animated: true
+              style: { stroke: '#000000', strokeWidth: 2 },
+              animated: false,
+              markerEnd: {
+                type: 'arrowclosed',
+                width: 20,
+                height: 20,
+                color: '#000000',
+              }
             }}
           >
             <MiniMap />
           </ReactFlow>
         </ReactFlowProvider>
-        
+
         {/* Render the sidebar*/}
         {showSidebar && sidebarData && (
           <>
@@ -210,7 +257,7 @@ const DragDrop = () => {
                   }}
                   onClick={handleCloseSidebar}
                 >
-                 X
+                  X
                 </Button>
               </div>
 
