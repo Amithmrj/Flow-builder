@@ -18,11 +18,12 @@ import { Icon } from '@iconify/react';
 const nodeTypes = {
   iconCard: CustomNode
 };
+const proOptions = { hideAttribution: true };
 
 const DragDrop = () => {
   const reactFlowWrapper = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
-  
+
   const [showSidebar, setShowSidebar] = useState(false);
   const [sidebarData, setSidebarData] = useState(null);
   const [sidebarNodeId, setSidebarNodeId] = useState(null);
@@ -60,12 +61,12 @@ const DragDrop = () => {
   const handleDeleteNode = (nodeId) => {
     // To allow deletion of the start node
     if (nodeId === 'start-node') return;
-    
+
     setNodes((nodes) => nodes.filter((node) => node.id !== nodeId));
     setEdges((edges) => edges.filter(
       (edge) => edge.source !== nodeId && edge.target !== nodeId
     ));
-    
+
     // To Close sidebar if the deleted node has the sidebar open
     if (nodeId === sidebarNodeId) {
       handleCloseSidebar();
@@ -94,30 +95,40 @@ const DragDrop = () => {
       }
     }
   ];
-  
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
 
 
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge({ 
+    (params) => setEdges((eds) => addEdge({
       ...params,
-       animated: false,
-       style: { stroke: '#000000', strokeWidth: 2 },
-       markerEnd: {
-         type: 'arrowclosed',
-         width: 20,
-         height: 20,
-         color: '#000000',
-       },
-      }, eds)),
+      animated: false,
+      style: { stroke: '#000000', strokeWidth: 2 },
+      markerEnd: {
+        type: 'arrowclosed',
+        width: 20,
+        height: 20,
+        color: '#000000',
+      },
+    }, eds)),
     [setEdges]
   );
 
   const isValidConnection = (connection) => {
     // Prevent connections where source and target are the same node
-    return connection.source !== connection.target;
+
+    if (connection.source === connection.target) {
+      return false;
+    }
+
+    // To Check if source already has an outgoing connection
+    const sourceHasOutgoingConnection = edges.some(
+      (edge) => edge.source === connection.source
+    );
+
+    return !sourceHasOutgoingConnection;
   };
 
   const onDragOver = useCallback((event) => {
@@ -176,7 +187,7 @@ const DragDrop = () => {
   const saveFlow = () => {
     if (reactFlowInstance) {
       const flow = reactFlowInstance.toObject();
-    
+
       console.log("Flow saved:", flow);
       alert("Flow saved successfully!");
     }
@@ -205,6 +216,7 @@ const DragDrop = () => {
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
+            proOptions={proOptions}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             isValidConnection={isValidConnection}

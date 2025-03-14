@@ -165,7 +165,7 @@ const CustomNode = ({ id, data }) => {
               <p className='text-center'>{data.stats.errors}</p>
             </div>
           </div>
-          <div className='text-center mb-2'>
+          <div className='text-center mb-5'>
             <Icon
               icon='mdi:interaction-tap'
               height={54}
@@ -175,6 +175,22 @@ const CustomNode = ({ id, data }) => {
             />
           </div>
         </div>
+
+        <div className='position-absolute'
+          style={{
+            fontSize: '10px',
+            top: '158px',
+            left: '152px'
+          }}><p>Compose next message</p></div>
+
+        {!isStartNode && (
+          <div className='position-absolute'
+            style={{
+              fontSize: '10px',
+              top: '158px',
+              left: '14px'
+            }}><p>Message</p></div>
+        )}
       </Card>
 
       <Handle
